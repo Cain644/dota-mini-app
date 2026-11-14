@@ -1166,7 +1166,12 @@ def handle_reply_keyboard_buttons(message):
 if __name__ == "__main__":
     register_slash_commands()
     print("Карманный Dotabuff-бот запущен: меню '/', /commands, /profile, /matches, /match, /records, /compare, /meta и inline-поиск активны...")
-    bot.infinity_polling(skip_pending=True)
+   
+
+# ==========================================
+# Вставь этот единый блок в САМЫЙ КОНЕЦ файла bot.py:
+# ==========================================
+
 app = Flask(__name__)
 
 @app.route('/')
@@ -1178,4 +1183,11 @@ def run_web():
     app.run(host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
+    register_slash_commands()
+    print("Карманный Dotabuff-бот запущен...")
+    
+    # 1. Запускаем веб-сервер Flask в фоновом потоке (чтобы Render видел открытый порт)
     threading.Thread(target=run_web, daemon=True).start()
+    
+    # 2. В главном потоке запускаем самого Telegram-бота
+    bot.infinity_polling(skip_pending=True)
