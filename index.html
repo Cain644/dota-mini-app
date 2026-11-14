@@ -1,0 +1,1600 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Pocket Dotabuff — Dota 2 Hero Ranker &amp; Telegram Mini App</title>
+  <meta name="description" content="Карманный Dotabuff: расчёт точного места в топе по герою Dota 2, досье игрока, разбор матчей 5×5, мета патча и сравнение 1v1." />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b0f17;
+      --surface: #111827;
+      --surface-2: #0f1522;
+      --surface-3: #161f33;
+      --border: rgba(148, 163, 184, 0.14);
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --dim: #64748b;
+      --accent: #e11d48;
+      --accent-soft: rgba(225, 29, 72, 0.16);
+      --tg: #2aabee;
+      --tg-soft: rgba(42, 171, 238, 0.16);
+      --win: #10b981;
+      --win-soft: rgba(16, 185, 129, 0.14);
+      --loss: #f43f5e;
+      --loss-soft: rgba(244, 63, 94, 0.14);
+      --gold: #f59e0b;
+      --radius: 14px;
+    }
+
+    body.theme-tg {
+      --bg: var(--tg-theme-bg-color, #17212b);
+      --surface: var(--tg-theme-secondary-bg-color, #232e3c);
+      --surface-2: #1b2634;
+      --surface-3: #2a3747;
+      --text: var(--tg-theme-text-color, #f5f5f5);
+      --muted: var(--tg-theme-hint-color, #8d9eb0);
+      --accent: var(--tg-theme-button-color, #5288c1);
+      --accent-soft: rgba(82, 136, 193, 0.2);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, .font-display {
+      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+    }
+
+    .mono {
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    a { color: #fb7185; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    button, input, select {
+      font: inherit;
+      color: inherit;
+    }
+
+    .app-shell {
+      max-width: 960px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 76px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: rgba(11, 15, 23, 0.92);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    body.theme-tg .topbar {
+      background: var(--surface);
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface-3);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn:hover { background: #1f2b44; border-color: rgba(148, 163, 184, 0.28); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); border-color: transparent; color: #fff; }
+    .btn-primary:hover { opacity: 0.92; background: var(--accent); }
+    .btn-tg { background: var(--tg); border-color: transparent; color: #fff; }
+    .btn-tg:hover { opacity: 0.92; background: var(--tg); }
+    .btn-sm { padding: 6px 10px; font-size: 11px; border-radius: 8px; }
+    .btn-active { background: var(--accent-soft); border-color: rgba(225, 29, 72, 0.45); color: #fecdd3; }
+
+    .main-content {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      flex: 1;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .card-sub {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .search-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .input {
+      flex: 1;
+      min-width: 180px;
+      height: 40px;
+      padding: 0 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .input:focus { border-color: var(--accent); }
+
+    .preset-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      align-items: center;
+    }
+
+    .preset-caption {
+      width: 100%;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    @media (max-width: 640px) {
+      .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    .stat-box {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: 10px 12px;
+    }
+
+    .stat-label { font-size: 11px; color: var(--muted); }
+    .stat-value { font-size: 18px; font-weight: 700; margin-top: 3px; }
+    .stat-sub { font-size: 11px; color: var(--dim); margin-top: 2px; }
+
+    .profile-hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .profile-id-block {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      object-fit: cover;
+      background: #1e293b;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .hero-img {
+      width: 52px;
+      height: 30px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #1e293b;
+      flex-shrink: 0;
+    }
+
+    .ring-wrap {
+      position: relative;
+      width: 66px;
+      height: 66px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .ring-label {
+      position: absolute;
+      text-align: center;
+      line-height: 1.1;
+    }
+
+    .form-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 8px;
+    }
+
+    .form-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+
+    .form-win { background: var(--win-soft); color: #34d399; border-color: rgba(16, 185, 129, 0.3); }
+    .form-loss { background: var(--loss-soft); color: #fb7185; border-color: rgba(244, 63, 94, 0.3); }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .list-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 11px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .list-row:hover { border-color: rgba(148, 163, 184, 0.35); background: var(--surface-3); }
+
+    .row-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .row-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row-sub { font-size: 11px; color: var(--muted); }
+
+    .row-right { text-align: right; flex-shrink: 0; }
+    .text-win { color: var(--win); }
+    .text-loss { color: var(--loss); }
+    .text-gold { color: var(--gold); }
+
+    .autocomplete-wrap { position: relative; flex: 1; min-width: 200px; }
+    .autocomplete-wrap .input { width: 100%; }
+    .autocomplete-list {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 44px;
+      z-index: 40;
+      background: #0d1320;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 10px;
+      max-height: 260px;
+      overflow-y: auto;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+    }
+
+    .autocomplete-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      padding: 8px 12px;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .autocomplete-item:hover { background: var(--surface-3); }
+    .autocomplete-item:last-child { border-bottom: 0; }
+
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .breakdown-item {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
+
+    .breakdown-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .breakdown-exp {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+      line-height: 1.45;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 35;
+      background: rgba(11, 15, 23, 0.96);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: center;
+      padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+    }
+
+    body.theme-tg .bottom-nav { background: var(--surface); }
+
+    .bottom-nav-inner {
+      width: 100%;
+      max-width: 960px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .nav-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 7px 6px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .nav-btn.active {
+      color: #fff;
+      background: var(--accent-soft);
+      border-color: rgba(225, 29, 72, 0.35);
+    }
+
+    .notice {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      color: #fecdd3;
+      font-size: 12px;
+    }
+
+    .notice-info {
+      background: var(--tg-soft);
+      border-color: rgba(42, 171, 238, 0.35);
+      color: #bae6fd;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="brand-title font-display">Pocket Dotabuff &amp; Hero Ranker</div>
+        <div class="brand-sub" id="topbar-sub">Автономная HTML-версия · Живые данные OpenDota</div>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" class="btn btn-sm" id="btn-theme">Тема: Dark</button>
+        <button type="button" class="btn btn-sm btn-tg" id="btn-send-chat">В чат</button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div id="global-toast" class="notice notice-info hidden"></div>
+
+      <!-- TAB 1: PROFILE -->
+      <section id="view-profile" class="list">
+        <div class="card">
+          <div class="search-row">
+            <input type="text" class="input mono" id="profile-input" placeholder="Friend ID, SteamID64, ссылка Dotabuff/OpenDota или ник" value="86745912" />
+            <button type="button" class="btn btn-primary" id="btn-load-profile">Найти</button>
+          </div>
+          <div class="preset-row">
+            <span class="preset-caption">Тестовые профили (примеры про-игроков, не ваш аккаунт):</span>
+            <button type="button" class="btn btn-sm" data-preset-id="86745912">Тест: Arteezy</button>
+            <button type="button" class="btn btn-sm" data-preset-id="105248644">Тест: Miracle-</button>
+            <button type="button" class="btn btn-sm" data-preset-id="111620041">Тест: Topson</button>
+            <button type="button" class="btn btn-sm" id="btn-save-my-id">Запомнить мой ID</button>
+          </div>
+        </div>
+        <div id="profile-body"></div>
+      </section>
+
+      <!-- TAB 2: HERO RANK -->
+      <section id="view-rank" class="list hidden">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Точное место в топе по герою</h2>
+              <div class="card-sub">Поддерживаются 180+ русских сленговых названий и автодополнение</div>
+            </div>
+          </div>
+          <div class="search-row">
+            <input type="text" class="input mono" id="rank-player-input" placeholder="Steam ID / ссылка / ник" value="86745912" style="max-width: 240px;" />
+            <div class="autocomplete-wrap">
+              <input type="text" class="input" id="rank-hero-input" placeholder="Герой или сленг (тб, пудж, тракса, сф...)" value="Terrorblade" autocomplete="off" />
+              <div id="hero-autocomplete" class="autocomplete-list hidden"></div>
+            </div>
+            <button type="button" class="btn btn-primary" id="btn-calc-rank">Рассчитать</button>
+          </div>
+          <div class="preset-row">
+            <span class="preset-caption">Быстрые тестовые расчёты:</span>
+            <button type="button" class="btn btn-sm" data-rank-preset="86745912|Terrorblade">Тест: Arteezy · Terrorblade</button>
+            <button type="button" class="btn btn-sm" data-rank-preset="105248644|Invoker">Тест: Miracle- · Invoker</button>
+            <button type="button" class="btn btn-sm" data-rank-preset="86745912|Pudge">Тест: Arteezy · пудж</button>
+          </div>
+        </div>
+        <div id="rank-body"></div>
+      </section>
+
+      <!-- TAB 3: MATCHES & 5v5 BREAKDOWN -->
+      <section id="view-matches" class="list hidden">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Последние матчи и разбор 5×5</h2>
+              <div class="card-sub">Нажмите на любую игру из истории или введите Match ID вручную</div>
+            </div>
+          </div>
+          <div class="search-row">
+            <input type="text" class="input mono" id="match-id-input" placeholder="Match ID для разбора 5×5 (например 8000000000)" />
+            <button type="button" class="btn btn-primary" id="btn-load-match">Разобрать матч</button>
+          </div>
+        </div>
+        <div id="match-detail-body"></div>
+        <div id="matches-list-body"></div>
+      </section>
+
+      <!-- TAB 4: META & 1v1 COMPARE -->
+      <section id="view-meta" class="list hidden">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Сравнение 2 игроков 1v1</h2>
+              <div class="card-sub">Ранг, винрейт, KDA, GPM/XPM и урон по героям</div>
+            </div>
+            <button type="button" class="btn btn-sm" id="btn-demo-compare">Тест: 1v1 Про</button>
+          </div>
+          <div class="search-row">
+            <input type="text" class="input mono" id="cmp-p1" placeholder="Игрок 1 (ID или ссылка)" value="86745912" />
+            <input type="text" class="input mono" id="cmp-p2" placeholder="Игрок 2 (ID или ссылка)" value="105248644" />
+            <button type="button" class="btn btn-primary" id="btn-run-compare">Сравнить</button>
+          </div>
+          <div id="compare-body" style="margin-top: 12px;"></div>
+        </div>
+        <div id="meta-body"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Навигация Pocket Dotabuff">
+      <div class="bottom-nav-inner">
+        <button type="button" class="nav-btn active" data-tab="profile">👤<span>Профиль</span></button>
+        <button type="button" class="nav-btn" data-tab="rank">🏆<span>Ранг</span></button>
+        <button type="button" class="nav-btn" data-tab="matches">⚔️<span>Матчи</span></button>
+        <button type="button" class="nav-btn" data-tab="meta">📊<span>Мета / VS</span></button>
+      </div>
+    </nav>
+  </div>
+
+  <script>
+    (() => {
+      const OPENDOTA = "https://api.opendota.com/api";
+      const STEAM_CDN = "https://cdn.cloudflare.steamstatic.com";
+      const STEAM64_OFFSET = 76561197960265728n;
+      const STORAGE_MY_ID = "pocket_dotabuff_my_id";
+
+      const HERO_ALIASES = {
+        "абаддон": "Abaddon", "аба": "Abaddon", "алхимик": "Alchemist", "алхим": "Alchemist", "химик": "Alchemist",
+        "акс": "Axe", "топор": "Axe", "бист": "Beastmaster", "бистмастер": "Beastmaster",
+        "брист": "Bristleback", "бристл": "Bristleback", "ежик": "Bristleback",
+        "кентавр": "Centaur Warrunner", "кент": "Centaur Warrunner", "цк": "Chaos Knight", "хаос": "Chaos Knight",
+        "клок": "Clockwerk", "клокверк": "Clockwerk", "дб": "Dawnbreaker", "дум": "Doom",
+        "дк": "Dragon Knight", "дракон": "Dragon Knight", "земеля": "Earth Spirit", "шейкер": "Earthshaker",
+        "титан": "Elder Titan", "хускар": "Huskar", "кунка": "Kunkka", "лега": "Legion Commander", "легионка": "Legion Commander",
+        "гуля": "Lifestealer", "найкс": "Lifestealer", "naix": "Lifestealer", "ликан": "Lycan", "волк": "Lycan",
+        "марс": "Mars", "нс": "Night Stalker", "баланар": "Night Stalker", "огр": "Ogre Magi",
+        "омник": "Omniknight", "феникс": "Phoenix", "праймал": "Primal Beast",
+        "пудж": "Pudge", "падж": "Pudge", "мясник": "Pudge", "буч": "Pudge",
+        "слардар": "Slardar", "селедка": "Slardar", "бара": "Spirit Breaker", "баратрум": "Spirit Breaker", "корова": "Spirit Breaker",
+        "свен": "Sven", "тайд": "Tidehunter", "арбуз": "Tidehunter", "тимбер": "Timbersaw", "пила": "Timbersaw",
+        "тини": "Tiny", "трент": "Treant Protector", "дерево": "Treant Protector", "таск": "Tusk", "туск": "Tusk",
+        "андерлорд": "Underlord", "питлорд": "Underlord", "зомби": "Undying",
+        "вк": "Wraith King", "папич": "Wraith King", "леорик": "Wraith King", "wk": "Wraith King",
+        "ам": "Anti-Mage", "антимаг": "Anti-Mage", "am": "Anti-Mage", "арк": "Arc Warden", "зет": "Arc Warden",
+        "бс": "Bloodseeker", "сикер": "Bloodseeker", "бх": "Bounty Hunter", "баунти": "Bounty Hunter",
+        "клинкз": "Clinkz", "боник": "Clinkz", "дровка": "Drow Ranger", "тракса": "Drow Ranger", "тракс": "Drow Ranger", "traxa": "Drow Ranger",
+        "эмбер": "Ember Spirit", "войд": "Faceless Void", "гиро": "Gyrocopter", "белка": "Hoodwink", "худвинк": "Hoodwink",
+        "джага": "Juggernaut", "джагер": "Juggernaut", "кез": "Kez", "лд": "Lone Druid", "друид": "Lone Druid",
+        "луна": "Luna", "медуза": "Medusa", "дуза": "Medusa", "мипо": "Meepo", "мирана": "Mirana", "потма": "Mirana",
+        "мк": "Monkey King", "макака": "Monkey King", "mk": "Monkey King", "морф": "Morphling", "нага": "Naga Siren",
+        "па": "Phantom Assassin", "фантомка": "Phantom Assassin", "мортра": "Phantom Assassin", "pa": "Phantom Assassin",
+        "пл": "Phantom Lancer", "лансер": "Phantom Lancer", "разор": "Razor", "рики": "Riki",
+        "сф": "Shadow Fiend", "финд": "Shadow Fiend", "невер": "Shadow Fiend", "sf": "Shadow Fiend",
+        "сларк": "Slark", "жаба": "Slark", "снайпер": "Sniper", "спектра": "Spectre",
+        "та": "Templar Assassin", "ланая": "Templar Assassin", "темпларка": "Templar Assassin", "ta": "Templar Assassin",
+        "тб": "Terrorblade", "террор": "Terrorblade", "иллидан": "Terrorblade", "tb": "Terrorblade",
+        "тролль": "Troll Warlord", "урса": "Ursa", "мишка": "Ursa", "венга": "Vengeful Spirit",
+        "вайпер": "Viper", "вивер": "Weaver", "жук": "Weaver",
+        "аа": "Ancient Apparition", "аппарат": "Ancient Apparition", "бэйн": "Bane", "бэт": "Batrider", "чен": "Chen",
+        "цм": "Crystal Maiden", "цмка": "Crystal Maiden", "рилай": "Crystal Maiden", "cm": "Crystal Maiden",
+        "дс": "Dark Seer", "вилка": "Dark Willow", "дазл": "Dazzle", "дп": "Death Prophet", "баньша": "Death Prophet",
+        "дизраптор": "Disruptor", "тралл": "Disruptor", "энча": "Enchantress", "коза": "Enchantress",
+        "энигма": "Enigma", "грим": "Grimstroke", "инвокер": "Invoker", "вокер": "Invoker", "карл": "Invoker",
+        "джакиро": "Jakiro", "тхд": "Jakiro", "котл": "Keeper of the Light", "кипер": "Keeper of the Light", "kotl": "Keeper of the Light",
+        "лешрак": "Leshrac", "леший": "Leshrac", "лич": "Lich", "лина": "Lina", "лион": "Lion",
+        "муэрта": "Muerta", "некр": "Necrophos", "оракл": "Oracle",
+        "од": "Outworld Devourer", "дестр": "Outworld Devourer", "дестроер": "Outworld Devourer", "od": "Outworld Devourer",
+        "пак": "Puck", "пугна": "Pugna", "квопа": "Queen of Pain", "акаша": "Queen of Pain", "qop": "Queen of Pain",
+        "рингмастер": "Ringmaster", "клоун": "Ringmaster", "рубик": "Rubick", "шд": "Shadow Demon",
+        "шаман": "Shadow Shaman", "раста": "Shadow Shaman", "сало": "Silencer",
+        "скай": "Skywrath Mage", "петух": "Skywrath Mage", "шторм": "Storm Spirit",
+        "тинкер": "Tinker", "варлок": "Warlock", "вд": "Witch Doctor", "вичка": "Witch Doctor", "wd": "Witch Doctor",
+        "виверна": "Winter Wyvern", "вв": "Winter Wyvern", "зевс": "Zeus",
+        "брю": "Brewmaster", "панда": "Brewmaster", "бруда": "Broodmother", "паук": "Broodmother",
+        "висп": "Io", "ио": "Io", "шарик": "Io", "магнус": "Magnus", "марси": "Marci",
+        "фура": "Nature's Prophet", "фурион": "Nature's Prophet", "никс": "Nyx Assassin", "панго": "Pangolier",
+        "ск": "Sand King", "песок": "Sand King", "бабка": "Snapfire", "снапа": "Snapfire",
+        "течис": "Techies", "минер": "Techies", "вено": "Venomancer", "веник": "Venomancer",
+        "визаж": "Visage", "войд спирит": "Void Spirit", "вр": "Windranger", "винда": "Windranger", "wr": "Windranger"
+      };
+
+      const ALIASES_BY_HERO = {};
+      for (const [alias, en] of Object.entries(HERO_ALIASES)) {
+        const key = en.toLowerCase();
+        if (!ALIASES_BY_HERO[key]) ALIASES_BY_HERO[key] = [];
+        ALIASES_BY_HERO[key].push(alias);
+      }
+
+      const MEDALS_RU = ["Без ранга", "Рекрут", "Страж", "Рыцарь", "Герой", "Легенда", "Властелин", "Божество", "Титан"];
+      const STARS = ["", "I", "II", "III", "IV", "V"];
+
+      const state = {
+        activeTab: "profile",
+        heroes: [],
+        heroMap: new Map(),
+        cache: new Map(),
+        dossier: null,
+        rankResult: null,
+        simWins: 0,
+        lastShareText: "",
+        tgTheme: false
+      };
+
+      const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+      if (tg) {
+        try {
+          tg.ready();
+          tg.expand();
+          if (tg.initData) {
+            state.tgTheme = true;
+            document.body.classList.add("theme-tg");
+            document.getElementById("btn-theme").textContent = "Тема: TG";
+          }
+        } catch {}
+      }
+
+      function esc(str) {
+        return String(str ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function fmtNum(n) {
+        return Number(n || 0).toLocaleString("ru-RU");
+      }
+
+      function fmtClock(sec) {
+        const s = Math.max(0, Math.round(Number(sec || 0)));
+        return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+      }
+
+      function showToast(text, isError = false) {
+        const el = document.getElementById("global-toast");
+        el.textContent = text;
+        el.className = isError ? "notice" : "notice notice-info";
+        el.classList.remove("hidden");
+        clearTimeout(showToast._timer);
+        showToast._timer = setTimeout(() => el.classList.add("hidden"), 3500);
+      }
+
+      async function apiGet(path) {
+        if (state.cache.has(path)) return state.cache.get(path);
+        const res = await fetch(`${OPENDOTA}${path}`);
+        if (!res.ok) throw new Error(`OpenDota HTTP ${res.status}`);
+        const json = await res.json();
+        state.cache.set(path, json);
+        return json;
+      }
+
+      function normalizeImg(raw, slug) {
+        if (!raw) return `${STEAM_CDN}/apps/dota2/images/dota_react/heroes/${slug}.png`;
+        const clean = String(raw).replace(/\?$/, "");
+        return clean.startsWith("http") ? clean : `${STEAM_CDN}${clean}`;
+      }
+
+      async function ensureHeroes() {
+        if (state.heroes.length) return state.heroes;
+        const raw = await apiGet("/heroStats");
+        state.heroes = raw.map((h) => {
+          const slug = String(h.name || "").replace("npc_dota_hero_", "");
+          return {
+            ...h,
+            imgUrl: normalizeImg(h.img, slug)
+          };
+        }).sort((a, b) => a.localized_name.localeCompare(b.localized_name));
+        state.heroMap = new Map(state.heroes.map((h) => [h.id, h]));
+        return state.heroes;
+      }
+
+      async function resolveAccountId(rawInput) {
+        const raw = String(rawInput || "").trim();
+        if (!raw) throw new Error("Введите Steam ID, ссылку на профиль или никнейм.");
+        const urlMatch = raw.match(/(?:dotabuff|opendota|stratz)\.com\/players\/(\d+)|steamcommunity\.com\/profiles\/(\d{17})/i);
+        const candidate = urlMatch ? (urlMatch[1] || urlMatch[2]) : raw;
+        if (/^\d+$/.test(candidate)) {
+          const num = BigInt(candidate);
+          return Number(num >= STEAM64_OFFSET ? num - STEAM64_OFFSET : num);
+        }
+        const results = await apiGet(`/search?q=${encodeURIComponent(raw)}`);
+        if (!Array.isArray(results) || !results.length) {
+          throw new Error(`Игрок «${raw}» не найден в OpenDota.`);
+        }
+        return Number(results[0].account_id);
+      }
+
+      function rankTierToInfo(rankTier, lbRank) {
+        if (!rankTier || rankTier < 10) return { label: "Без ранга", approxMmr: 2200 };
+        const medal = Math.min(8, Math.floor(rankTier / 10));
+        const star = Math.min(5, Math.max(1, rankTier % 10));
+        if (medal === 8) {
+          const mmr = lbRank && lbRank <= 1000 ? Math.max(6000, 9200 - lbRank * 2) : 6800;
+          return { label: lbRank ? `Титан #${fmtNum(lbRank)}` : "Титан", approxMmr: mmr };
+        }
+        const base = [2200, 150, 850, 1600, 2350, 3100, 3850, 4650, 5800];
+        return { label: `${MEDALS_RU[medal]} ${STARS[star]}`.trim(), approxMmr: base[medal] + (star - 1) * 155 };
+      }
+
+      function estimatePool(pubPick) {
+        return Math.max(65000, Math.min(1800000, Math.round((pubPick || 80000) * 4.15)));
+      }
+
+      function suggestHeroes(query, limit = 7) {
+        const q = String(query || "").trim().toLowerCase();
+        if (!q) return [];
+        const exactAlias = (HERO_ALIASES[q] || "").toLowerCase();
+        return state.heroes.map((h) => {
+          const en = h.localized_name.toLowerCase();
+          const aliases = ALIASES_BY_HERO[en] || [];
+          const matchedAliases = aliases.filter((a) => a === q || a.startsWith(q) || a.includes(q));
+          let score = 0;
+          if (en === q || exactAlias === en) score = 100;
+          else if (en.startsWith(q) || aliases.some((a) => a.startsWith(q))) score = 85;
+          else if (en.includes(q) || matchedAliases.length) score = 55;
+          return { hero: h, aliases: matchedAliases.length ? matchedAliases : aliases.slice(0, 3), score };
+        }).filter((x) => x.score > 0)
+          .sort((a, b) => b.score - a.score || (b.hero.pub_pick || 0) - (a.hero.pub_pick || 0))
+          .slice(0, limit);
+      }
+
+      function findHero(query) {
+        const s = suggestHeroes(query, 1);
+        return s.length ? s[0].hero : null;
+      }
+
+      function switchTab(tab) {
+        state.activeTab = tab;
+        for (const id of ["profile", "rank", "matches", "meta"]) {
+          document.getElementById(`view-${id}`).classList.toggle("hidden", id !== tab);
+        }
+        document.querySelectorAll(".nav-btn").forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.tab === tab);
+        });
+        if (tab === "meta" && !document.getElementById("meta-body").innerHTML.trim()) {
+          loadMeta();
+        }
+      }
+
+      async function loadProfile(rawInput) {
+        const body = document.getElementById("profile-body");
+        body.innerHTML = `<div class="card">Загрузка профиля из OpenDota...</div>`;
+        try {
+          await ensureHeroes();
+          const accountId = await resolveAccountId(rawInput);
+          const [prof, wl, totals, counts, rankings, heroStats, recent] = await Promise.all([
+            apiGet(`/players/${accountId}`),
+            apiGet(`/players/${accountId}/wl`).catch(() => ({ win: 0, lose: 0 })),
+            apiGet(`/players/${accountId}/totals`).catch(() => []),
+            apiGet(`/players/${accountId}/counts`).catch(() => ({})),
+            apiGet(`/players/${accountId}/rankings`).catch(() => []),
+            apiGet(`/players/${accountId}/heroes`).catch(() => []),
+            apiGet(`/players/${accountId}/recentMatches`).catch(() => [])
+          ]);
+          if (!prof?.profile) throw new Error("Профиль скрыт настройками приватности Dota 2 или не найден.");
+
+          const totalGames = (wl.win || 0) + (wl.lose || 0);
+          const wr = totalGames > 0 ? Math.round(((wl.win || 0) / totalGames) * 1000) / 10 : 0;
+          const tMap = new Map((Array.isArray(totals) ? totals : []).filter((t) => t.n > 0).map((t) => [t.field, t.sum / t.n]));
+          const rankInfo = rankTierToInfo(prof.rank_tier, prof.leaderboard_rank);
+          const estMmr = prof.mmr_estimate?.estimate || rankInfo.approxMmr;
+          const rad = counts?.is_radiant?.["1"];
+          const dire = counts?.is_radiant?.["0"];
+          const radWr = rad?.games ? ((rad.win / rad.games) * 100).toFixed(1) : "—";
+          const direWr = dire?.games ? ((dire.win / dire.games) * 100).toFixed(1) : "—";
+
+          const statMap = new Map((Array.isArray(heroStats) ? heroStats : []).map((h) => [Number(h.hero_id), h]));
+          const topHeroes = [...(Array.isArray(rankings) ? rankings : [])]
+            .sort((a, b) => b.percent_rank - a.percent_rank)
+            .slice(0, 8)
+            .map((r) => {
+              const h = state.heroMap.get(r.hero_id);
+              const st = statMap.get(r.hero_id);
+              const pool = estimatePool(h?.pub_pick);
+              return {
+                hero_id: r.hero_id,
+                name: h?.localized_name || `Hero #${r.hero_id}`,
+                imgUrl: h?.imgUrl || "",
+                score: Math.round(r.score * 10) / 10,
+                estRank: Math.max(1, Math.round((1 - r.percent_rank) * pool)),
+                games: st?.games || 0,
+                wr: st?.games ? Math.round((st.win / st.games) * 1000) / 10 : 0
+              };
+            });
+
+          const recentList = Array.isArray(recent) ? recent.slice(0, 20) : [];
+          state.dossier = { accountId, prof, wl, totalGames, wr, rankInfo, estMmr, topHeroes, recentList };
+          state.lastShareText = `${prof.profile.personaname} (${rankInfo.label}, ~${estMmr} MMR) · ${fmtNum(totalGames)} игр (${wr}% WR)`;
+          document.getElementById("topbar-sub").textContent = `${prof.profile.personaname} · ${rankInfo.label}`;
+          document.getElementById("rank-player-input").value = String(accountId);
+
+          const circ = 2 * Math.PI * 26;
+          const offset = circ - (Math.min(100, wr) / 100) * circ;
+
+          const formHtml = recentList.slice(0, 16).map((m) => {
+            const won = (m.player_slot < 128) === Boolean(m.radiant_win);
+            return `<button type="button" class="form-btn ${won ? "form-win" : "form-loss"}" data-open-match="${m.match_id}" title="Открыть матч #${m.match_id}">${won ? "W" : "L"}</button>`;
+          }).join("");
+
+          const topHeroesHtml = topHeroes.map((h) => `
+            <button type="button" class="list-row" data-jump-rank="${accountId}|${esc(h.name)}">
+              <div class="row-left">
+                ${h.imgUrl ? `<img class="hero-img" src="${esc(h.imgUrl)}" alt="${esc(h.name)}" />` : ""}
+                <div>
+                  <div class="row-title">${esc(h.name)}</div>
+                  <div class="row-sub mono">${h.games} игр · ${h.wr}% WR</div>
+                </div>
+              </div>
+              <div class="row-right mono">
+                <div style="font-weight:700;font-size:13px;">~#${fmtNum(h.estRank)}</div>
+                <div class="row-sub">${h.score} pts</div>
+              </div>
+            </button>
+          `).join("");
+
+          let recordsHtml = "";
+          if (recentList.length) {
+            const maxK = recentList.reduce((a, b) => (b.kills > a.kills ? b : a));
+            const maxG = recentList.reduce((a, b) => (b.gold_per_min > a.gold_per_min ? b : a));
+            const maxD = recentList.reduce((a, b) => (b.hero_damage > a.hero_damage ? b : a));
+            recordsHtml = `
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">Недавние рекорды</h3>
+                  <span class="card-sub">Нажмите для разбора 5×5</span>
+                </div>
+                <div class="grid-3">
+                  <button type="button" class="stat-box" style="cursor:pointer;text-align:left;" data-open-match="${maxK.match_id}">
+                    <div class="stat-label">Макс. убийств</div>
+                    <div class="stat-value mono text-win">${maxK.kills}</div>
+                    <div class="stat-sub">${esc(state.heroMap.get(maxK.hero_id)?.localized_name || "")}</div>
+                  </button>
+                  <button type="button" class="stat-box" style="cursor:pointer;text-align:left;" data-open-match="${maxG.match_id}">
+                    <div class="stat-label">Рекорд GPM</div>
+                    <div class="stat-value mono text-gold">${maxG.gold_per_min}</div>
+                    <div class="stat-sub">${esc(state.heroMap.get(maxG.hero_id)?.localized_name || "")}</div>
+                  </button>
+                  <button type="button" class="stat-box" style="cursor:pointer;text-align:left;" data-open-match="${maxD.match_id}">
+                    <div class="stat-label">Макс. урон</div>
+                    <div class="stat-value mono">${fmtNum(maxD.hero_damage)}</div>
+                    <div class="stat-sub">${esc(state.heroMap.get(maxD.hero_id)?.localized_name || "")}</div>
+                  </button>
+                </div>
+              </div>
+            `;
+          }
+
+          body.innerHTML = `
+            <div class="card">
+              <div class="profile-hero">
+                <div class="profile-id-block">
+                  ${prof.profile.avatarfull ? `<img class="avatar" src="${esc(prof.profile.avatarfull)}" alt="${esc(prof.profile.personaname)}" />` : `<div class="avatar"></div>`}
+                  <div style="min-width:0;">
+                    <h2 class="font-display" style="font-size:18px;">${esc(prof.profile.personaname)}</h2>
+                    <div class="row-sub" style="margin-top:3px;">${esc(rankInfo.label)} · ~${fmtNum(estMmr)} MMR ${prof.profile.plus ? "· Dota+" : ""}</div>
+                    <div class="row-sub mono" style="margin-top:2px;">ID: ${accountId}</div>
+                  </div>
+                </div>
+                <div class="ring-wrap">
+                  <svg width="66" height="66" viewBox="0 0 66 66">
+                    <circle cx="33" cy="33" r="26" fill="none" stroke="rgba(148,163,184,0.18)" stroke-width="6"></circle>
+                    <circle cx="33" cy="33" r="26" fill="none" stroke="${wr >= 50 ? "#10b981" : "#f43f5e"}" stroke-width="6" stroke-linecap="round"
+                      stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}" transform="rotate(-90 33 33)"></circle>
+                  </svg>
+                  <div class="ring-label mono">
+                    <div style="font-size:12px;font-weight:700;">${wr}%</div>
+                    <div style="font-size:9px;color:var(--muted);">WR</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid-3" style="margin-top:14px;">
+                <div class="stat-box">
+                  <div class="stat-label">Матчи</div>
+                  <div class="stat-value mono">${fmtNum(totalGames)}</div>
+                  <div class="stat-sub mono">${wl.win || 0}W – ${wl.lose || 0}L</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-label">Средний KDA</div>
+                  <div class="stat-value mono">${(tMap.get("kda") || 0).toFixed(2)}</div>
+                  <div class="stat-sub mono">${(tMap.get("kills") || 0).toFixed(1)} / ${(tMap.get("deaths") || 0).toFixed(1)} / ${(tMap.get("assists") || 0).toFixed(1)}</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-label">GPM / XPM</div>
+                  <div class="stat-value mono">${Math.round(tMap.get("gold_per_min") || 0)}</div>
+                  <div class="stat-sub mono">XPM ${Math.round(tMap.get("xp_per_min") || 0)}</div>
+                </div>
+              </div>
+
+              <div style="margin-top:12px;">
+                <div class="card-sub">Форма за последние матчи (нажмите W/L для разбора 5×5) · Свет ${radWr}% / Тьма ${direWr}%</div>
+                <div class="form-strip">${formHtml || `<span class="card-sub">Нет недавних игр</span>`}</div>
+              </div>
+
+              <div style="margin-top:12px;display:flex;gap:14px;font-size:12px;">
+                <a href="https://www.opendota.com/players/${accountId}" target="_blank" rel="noreferrer">OpenDota ↗</a>
+                <a href="https://www.dotabuff.com/players/${accountId}" target="_blank" rel="noreferrer">Dotabuff ↗</a>
+                <a href="https://steamcommunity.com/profiles/${BigInt(accountId) + STEAM64_OFFSET}" target="_blank" rel="noreferrer">Steam ↗</a>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Сигнатурные герои (Топ-8)</h3>
+                <span class="card-sub">Нажмите для точного ранга</span>
+              </div>
+              <div class="list">${topHeroesHtml || `<div class="card-sub">Нет данных рейтинга по героям</div>`}</div>
+            </div>
+
+            ${recordsHtml}
+          `;
+
+          renderMatchesList(recentList, prof.profile.personaname);
+        } catch (err) {
+          body.innerHTML = `<div class="notice">${esc(err.message || "Ошибка загрузки профиля")}</div>`;
+        }
+      }
+
+      function renderMatchesList(matches, playerName) {
+        const container = document.getElementById("matches-list-body");
+        if (!matches?.length) {
+          container.innerHTML = `<div class="card card-sub">Нет недавних матчей</div>`;
+          return;
+        }
+        const rows = matches.slice(0, 15).map((m) => {
+          const won = (m.player_slot < 128) === Boolean(m.radiant_win);
+          const hero = state.heroMap.get(m.hero_id);
+          return `
+            <button type="button" class="list-row" data-open-match="${m.match_id}">
+              <div class="row-left">
+                ${hero?.imgUrl ? `<img class="hero-img" src="${esc(hero.imgUrl)}" alt="${esc(hero.localized_name)}" />` : ""}
+                <div>
+                  <div class="row-title">${esc(hero?.localized_name || `#${m.hero_id}`)} <span class="${won ? "text-win" : "text-loss"}">· ${won ? "Победа" : "Поражение"}</span></div>
+                  <div class="row-sub mono">${m.kills}/${m.deaths}/${m.assists} · GPM ${m.gold_per_min || 0} · ${fmtClock(m.duration)}</div>
+                </div>
+              </div>
+              <div class="row-right mono">
+                <div style="font-size:12px;">#${m.match_id}</div>
+                <div class="row-sub">5×5 разбор →</div>
+              </div>
+            </button>
+          `;
+        }).join("");
+
+        container.innerHTML = `
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Последние матчи — ${esc(playerName)}</h3>
+              <span class="card-sub">Выберите игру</span>
+            </div>
+            <div class="list">${rows}</div>
+          </div>
+        `;
+      }
+
+      async function loadMatchBreakdown(matchId) {
+        const box = document.getElementById("match-detail-body");
+        box.innerHTML = `<div class="card">Загрузка разбора матча #${matchId}...</div>`;
+        document.getElementById("match-id-input").value = String(matchId);
+        try {
+          await ensureHeroes();
+          const m = await apiGet(`/matches/${matchId}`);
+          if (!m || !Array.isArray(m.players)) throw new Error(`Матч #${matchId} не найден.`);
+
+          const radPlayers = m.players.filter((p) => p.player_slot < 128);
+          const direPlayers = m.players.filter((p) => p.player_slot >= 128);
+          const mvp = [...m.players].sort((a, b) =>
+            ((b.kills + b.assists * 0.7) / Math.max(1, b.deaths) + (b.hero_damage || 0) / 8000) -
+            ((a.kills + a.assists * 0.7) / Math.max(1, a.deaths) + (a.hero_damage || 0) / 8000)
+          )[0];
+
+          const chartHtml = buildAdvantageSvg(m.radiant_gold_adv || [], m.radiant_xp_adv || []);
+          const renderTeamTable = (title, players, colorClass) => `
+            <div style="margin-top:12px;">
+              <div class="card-title ${colorClass}" style="margin-bottom:6px;">${title}</div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Герой / Игрок</th><th>K/D/A</th><th>GPM/XPM</th><th>Нетворс</th><th>Урон</th></tr>
+                  </thead>
+                  <tbody>
+                    ${players.map((p) => {
+                      const h = state.heroMap.get(p.hero_id);
+                      const isMvp = p.player_slot === mvp?.player_slot;
+                      return `
+                        <tr>
+                          <td>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                              ${h?.imgUrl ? `<img class="hero-img" style="width:36px;height:20px;" src="${esc(h.imgUrl)}" alt="" />` : ""}
+                              <div>
+                                <div style="font-weight:600;">${esc(h?.localized_name || p.hero_id)} ${isMvp ? `<span class="text-gold">★ MVP</span>` : ""}</div>
+                                <div class="card-sub">${esc(p.personaname || "Аноним")}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td class="mono">${p.kills}/${p.deaths}/${p.assists}</td>
+                          <td class="mono">${p.gold_per_min}/${p.xp_per_min}</td>
+                          <td class="mono text-gold">${fmtNum(p.net_worth || p.total_gold || 0)}</td>
+                          <td class="mono">${((p.hero_damage || 0) / 1000).toFixed(1)}k</td>
+                        </tr>
+                      `;
+                    }).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+
+          box.innerHTML = `
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Матч #${m.match_id} · <span class="${m.radiant_win ? "text-win" : "text-loss"}">${m.radiant_win ? "Победа Radiant" : "Победа Dire"}</span></h3>
+                  <div class="card-sub mono">Счёт ${m.radiant_score}:${m.dire_score} · ${fmtClock(m.duration)}</div>
+                </div>
+                <a href="https://www.opendota.com/matches/${m.match_id}" target="_blank" rel="noreferrer" class="btn btn-sm">OpenDota ↗</a>
+              </div>
+              ${chartHtml}
+              ${renderTeamTable("Силы Света (Radiant)", radPlayers, "text-win")}
+              ${renderTeamTable("Силы Тьмы (Dire)", direPlayers, "text-loss")}
+            </div>
+          `;
+        } catch (err) {
+          box.innerHTML = `<div class="notice">${esc(err.message || "Ошибка загрузки матча")}</div>`;
+        }
+      }
+
+      function buildAdvantageSvg(goldAdv, xpAdv) {
+        if (!Array.isArray(goldAdv) || goldAdv.length < 2) return "";
+        const w = 520, h = 110, pad = 10;
+        const all = [...goldAdv, ...(xpAdv || [])];
+        const maxAbs = Math.max(2000, ...all.map((v) => Math.abs(v)));
+        const midY = h / 2;
+        const toPts = (arr) => arr.map((v, i) => {
+          const x = pad + (i / (arr.length - 1)) * (w - pad * 2);
+          const y = midY - (v / maxAbs) * (midY - pad);
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(" ");
+
+        return `
+          <div style="margin:8px 0 4px;">
+            <div class="card-sub" style="margin-bottom:4px;">График преимущества (Золото — жёлтый · Опыт — голубой)</div>
+            <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:110px;display:block;background:var(--surface-2);border-radius:10px;border:1px solid var(--border);">
+              <line x1="${pad}" y1="${midY}" x2="${w - pad}" y2="${midY}" stroke="rgba(148,163,184,0.3)" stroke-dasharray="4 4" />
+              <polyline fill="none" stroke="#f59e0b" stroke-width="2" points="${toPts(goldAdv)}" />
+              ${xpAdv?.length > 1 ? `<polyline fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.85" points="${toPts(xpAdv)}" />` : ""}
+            </svg>
+          </div>
+        `;
+      }
+
+      async function calculateHeroRank(rawPlayer, rawHero) {
+        const body = document.getElementById("rank-body");
+        body.innerHTML = `<div class="card">Расчёт позиции на герое и загрузка лидерборда OpenDota...</div>`;
+        try {
+          await ensureHeroes();
+          const hero = findHero(rawHero);
+          if (!hero) throw new Error(`Герой «${rawHero}» не найден. Выберите из выпадающей подсказки.`);
+          const accountId = await resolveAccountId(rawPlayer);
+
+          const [prof, rankings, heroStats, lbRaw] = await Promise.all([
+            apiGet(`/players/${accountId}`),
+            apiGet(`/players/${accountId}/rankings`).catch(() => []),
+            apiGet(`/players/${accountId}/heroes`).catch(() => []),
+            apiGet(`/rankings?hero_id=${hero.id}`).catch(() => ({ rankings: [] }))
+          ]);
+          if (!prof?.profile) throw new Error("Профиль скрыт или не найден.");
+
+          const leaderboard = [...(lbRaw.rankings || [])].sort((a, b) => b.score - a.score);
+          const top1 = leaderboard[0]?.score || 8500;
+          const top10 = leaderboard[Math.min(9, leaderboard.length - 1)]?.score || 8150;
+          const top100 = leaderboard[leaderboard.length - 1]?.score || 7600;
+          const pool = estimatePool(hero.pub_pick);
+
+          const rankInfo = rankTierToInfo(prof.rank_tier, prof.leaderboard_rank);
+          const estMmr = prof.mmr_estimate?.estimate || rankInfo.approxMmr;
+          const pEntry = (Array.isArray(rankings) ? rankings : []).find((r) => r.hero_id === hero.id);
+          const pStat = (Array.isArray(heroStats) ? heroStats : []).find((h) => Number(h.hero_id) === hero.id);
+          const exactIdx = leaderboard.findIndex((e) => e.account_id === accountId);
+
+          const games = pStat?.games || 0;
+          const wins = pStat?.win || 0;
+          const wr = games > 0 ? Math.round((wins / games) * 1000) / 10 : 50;
+
+          let score, estRank, pctRank, status;
+          let isEstimated = false;
+          if (exactIdx !== -1) {
+            estRank = exactIdx + 1;
+            score = leaderboard[exactIdx].score;
+            pctRank = 1 - estRank / pool;
+            status = `Подтверждено в официальном Топ-100 OpenDota (#${estRank})`;
+          } else if (pEntry) {
+            score = pEntry.score;
+            pctRank = pEntry.percent_rank;
+            estRank = Math.max(101, Math.round((1 - pctRank) * pool));
+            status = "Расчёт по живому Hero Score и процентилю OpenDota";
+          } else {
+            isEstimated = true;
+            const conf = games > 0 ? 1 - Math.exp(-games / 22) : 0;
+            score = games > 0
+              ? 1900 + estMmr * 0.62 + ((wins / games) - 0.5) * 2600 * conf + Math.min(1250, Math.log10(games + 1) * 430)
+              : estMmr * 0.45;
+            pctRank = Math.min(0.9997, Math.max(0.01, 1 / (1 + Math.exp(-0.00145 * (score - top100 * 0.52)))));
+            estRank = Math.max(101, Math.round((1 - pctRank) * pool));
+            status = "Оценочный расчёт (меньше 10 рейтинговых матчей на герое)";
+          }
+
+          const topPercent = Math.max(0.001, Math.round((1 - pctRank) * 100000) / 1000);
+          const deficit = Math.max(0, Math.round((top100 - score) * 10) / 10);
+          const mmrPts = games > 0 ? Math.round((1900 + estMmr * 0.62) * 10) / 10 : Math.round(estMmr * 0.45 * 10) / 10;
+          const conf = games > 0 ? 1 - Math.exp(-games / 22) : 0;
+          const wrPts = games > 0 ? Math.round(((wins / games - 0.5) * 2600 * conf) * 10) / 10 : 0;
+          const volPts = games > 0 ? Math.round(Math.min(1250, Math.log10(games + 1) * 430) * 10) / 10 : 0;
+          const calibPts = Math.round((score - (mmrPts + wrPts + volPts)) * 10) / 10;
+
+          const breakdown = [
+            { label: `База от ранга (${rankInfo.label})`, pts: mmrPts, exp: `Опора ~${fmtNum(estMmr)} MMR — победы в более высоких лобби дают больше стартовых очков.` },
+            { label: `Винрейт на герое (${wr}%)`, pts: wrPts, exp: `${wins} побед из ${games} игр с поправкой на достоверность выборки.` },
+            { label: `Опыт и дистанция (${games} игр)`, pts: volPts, exp: "Логарифмический бонус за стабильное количество матчей на герое." }
+          ];
+          if (!isEstimated) {
+            breakdown.push({ label: "Калибровка OpenDota и лобби", pts: calibPts, exp: "Поправка алгоритма OpenDota за уровень соперников, серии и KDA." });
+          }
+
+          state.rankResult = { hero, prof, score, estRank, pool, topPercent, top1, top10, top100, deficit, games, wins, wr, status, breakdown };
+          state.simWins = 0;
+          state.lastShareText = `${prof.profile.personaname} на ${hero.localized_name}: #${fmtNum(estRank)} в мире (Топ ${topPercent}%), Score ${score.toFixed(1)} pts`;
+
+          const lbRows = leaderboard.slice(0, 15).map((r, i) => `
+            <tr ${r.account_id === accountId ? 'style="background:var(--accent-soft);"' : ""}>
+              <td class="mono">#${i + 1}</td>
+              <td>${esc(r.personaname || `Игрок ${r.account_id}`)}</td>
+              <td>${esc(rankTierToInfo(r.rank_tier).label)}</td>
+              <td class="mono" style="font-weight:700;">${Number(r.score).toFixed(1)}</td>
+              <td class="mono ${r.score > score ? "text-loss" : "text-win"}">${r.score >= score ? "+" : ""}${(r.score - score).toFixed(1)}</td>
+            </tr>
+          `).join("");
+
+          body.innerHTML = `
+            <div class="card">
+              <div class="profile-hero">
+                <div class="profile-id-block">
+                  <img class="hero-img" src="${esc(hero.imgUrl)}" alt="${esc(hero.localized_name)}" style="width:74px;height:42px;" />
+                  <div>
+                    <h3 class="font-display" style="font-size:17px;">${esc(prof.profile.personaname)} — ${esc(hero.localized_name)}</h3>
+                    <div class="row-sub">${esc(status)}</div>
+                  </div>
+                </div>
+                <div class="row-right mono">
+                  <div style="font-size:24px;font-weight:800;color:#fb7185;">#${fmtNum(estRank)}</div>
+                  <div class="row-sub">из ~${fmtNum(pool)} (Топ ${topPercent}%)</div>
+                </div>
+              </div>
+
+              <div class="grid-4" style="margin-top:14px;">
+                <div class="stat-box">
+                  <div class="stat-label">Hero Score</div>
+                  <div class="stat-value mono">${score.toFixed(1)}</div>
+                  <div class="stat-sub">очков рейтинга</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-label">Порог Топ-100</div>
+                  <div class="stat-value mono">${top100.toFixed(1)}</div>
+                  <div class="stat-sub">${deficit > 0 ? `+${deficit} до входа` : "В Топ-100"}</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-label">Топ-10 / Топ-1</div>
+                  <div class="stat-value mono">${top10.toFixed(0)}</div>
+                  <div class="stat-sub">Топ-1: ${top1.toFixed(0)}</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-label">Игры на герое</div>
+                  <div class="stat-value mono">${games}</div>
+                  <div class="stat-sub">${wins}W – ${Math.max(0, games - wins)}L (${wr}%)</div>
+                </div>
+              </div>
+
+              <div style="margin-top:14px;">
+                <div class="card-title" style="margin-bottom:8px;">Разбор Hero Score (за что начислены очки)</div>
+                <div class="list">
+                  ${breakdown.map((b) => `
+                    <div class="breakdown-item">
+                      <div class="breakdown-top">
+                        <span>${esc(b.label)}</span>
+                        <span class="mono ${b.pts >= 0 ? "text-win" : "text-loss"}">${b.pts >= 0 ? "+" : ""}${b.pts.toFixed(1)} pts</span>
+                      </div>
+                      <div class="breakdown-exp">${esc(b.exp)}</div>
+                    </div>
+                  `).join("")}
+                </div>
+              </div>
+
+              <div style="margin-top:14px;" class="stat-box">
+                <div class="card-header" style="margin-bottom:6px;">
+                  <span class="card-title">Симулятор побед на ${esc(hero.localized_name)}</span>
+                  <span class="mono text-win" id="sim-wins-label">+0 побед</span>
+                </div>
+                <input type="range" id="sim-wins-range" min="0" max="20" value="0" style="width:100%;" />
+                <div class="row-sub" id="sim-projection" style="margin-top:6px;">Двигайте ползунок, чтобы увидеть прогноз нового места в топе.</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Топ-15 игроков мира на ${esc(hero.localized_name)}</h3>
+                <span class="card-sub">OpenDota Rankings</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>#</th><th>Игрок</th><th>Ранг</th><th>Score</th><th>Δ с вами</th></tr></thead>
+                  <tbody>${lbRows}</tbody>
+                </table>
+              </div>
+            </div>
+          `;
+
+          document.getElementById("sim-wins-range").addEventListener("input", (e) => {
+            const extra = Number(e.target.value || 0);
+            document.getElementById("sim-wins-label").textContent = `+${extra} побед`;
+            const projScore = score + extra * 38;
+            const projPct = Math.min(0.9999, pctRank + (1 - pctRank) * Math.min(0.85, extra * 0.042));
+            const projRank = Math.max(1, Math.round((1 - projPct) * pool));
+            document.getElementById("sim-projection").textContent =
+              extra === 0
+                ? "Двигайте ползунок, чтобы увидеть прогноз нового места в топе."
+                : `Прогноз: ~#${fmtNum(projRank)} место (${projScore.toFixed(1)} pts)${projScore >= top100 ? " — вход в Топ-100!" : ""}`;
+          });
+        } catch (err) {
+          body.innerHTML = `<div class="notice">${esc(err.message || "Ошибка расчёта")}</div>`;
+        }
+      }
+
+      async function loadMeta() {
+        const body = document.getElementById("meta-body");
+        body.innerHTML = `<div class="card">Загрузка меты текущего патча...</div>`;
+        try {
+          const heroes = await ensureHeroes();
+          const highRank = heroes
+            .filter((h) => (h["8_pick"] || 0) + (h["7_pick"] || 0) > 100)
+            .map((h) => {
+              const p = (h["8_pick"] || 0) + (h["7_pick"] || 0);
+              const w = (h["8_win"] || 0) + (h["7_win"] || 0);
+              return { ...h, highPick: p, highWr: (w / p) * 100 };
+            })
+            .sort((a, b) => b.highWr - a.highWr)
+            .slice(0, 8);
+
+          const mostPicked = [...heroes].sort((a, b) => (b.pub_pick || 0) - (a.pub_pick || 0)).slice(0, 8);
+
+          body.innerHTML = `
+            <div class="grid-2">
+              <div class="card">
+                <div class="card-header"><h3 class="card-title">Топ винрейта (Божество / Титан)</h3></div>
+                <div class="list">
+                  ${highRank.map((h, i) => `
+                    <button type="button" class="list-row" data-jump-hero="${esc(h.localized_name)}">
+                      <div class="row-left">
+                        <span class="mono" style="width:18px;color:var(--muted);">${i + 1}</span>
+                        <img class="hero-img" src="${esc(h.imgUrl)}" alt="" />
+                        <div class="row-title">${esc(h.localized_name)}</div>
+                      </div>
+                      <div class="row-right mono">
+                        <div class="text-win" style="font-weight:700;">${h.highWr.toFixed(1)}%</div>
+                        <div class="row-sub">${fmtNum(h.highPick)} игр</div>
+                      </div>
+                    </button>
+                  `).join("")}
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header"><h3 class="card-title">Самые популярные в пабах (30 дн.)</h3></div>
+                <div class="list">
+                  ${mostPicked.map((h, i) => {
+                    const wr = h.pub_pick ? ((h.pub_win / h.pub_pick) * 100).toFixed(1) : "50.0";
+                    return `
+                      <button type="button" class="list-row" data-jump-hero="${esc(h.localized_name)}">
+                        <div class="row-left">
+                          <span class="mono" style="width:18px;color:var(--muted);">${i + 1}</span>
+                          <img class="hero-img" src="${esc(h.imgUrl)}" alt="" />
+                          <div class="row-title">${esc(h.localized_name)}</div>
+                        </div>
+                        <div class="row-right mono">
+                          <div style="font-weight:700;">${fmtNum(h.pub_pick)}</div>
+                          <div class="row-sub">WR ${wr}%</div>
+                        </div>
+                      </button>
+                    `;
+                  }).join("")}
+                </div>
+              </div>
+            </div>
+          `;
+        } catch (err) {
+          body.innerHTML = `<div class="notice">${esc(err.message || "Не удалось загрузить мету")}</div>`;
+        }
+      }
+
+      async function runCompare(raw1, raw2) {
+        const box = document.getElementById("compare-body");
+        box.innerHTML = `<div class="card-sub">Загрузка статистики двух игроков...</div>`;
+        try {
+          const [id1, id2] = await Promise.all([resolveAccountId(raw1), resolveAccountId(raw2)]);
+          const [p1, w1, t1, p2, w2, t2] = await Promise.all([
+            apiGet(`/players/${id1}`), apiGet(`/players/${id1}/wl`), apiGet(`/players/${id1}/totals`).catch(() => []),
+            apiGet(`/players/${id2}`), apiGet(`/players/${id2}/wl`), apiGet(`/players/${id2}/totals`).catch(() => [])
+          ]);
+          const getTot = (arr, field) => {
+            const item = Array.isArray(arr) ? arr.find((x) => x.field === field && x.n > 0) : null;
+            return item ? item.sum / item.n : 0;
+          };
+          const g1 = (w1.win || 0) + (w1.lose || 0), g2 = (w2.win || 0) + (w2.lose || 0);
+          const wr1 = g1 ? ((w1.win / g1) * 100).toFixed(1) : "0.0";
+          const wr2 = g2 ? ((w2.win / g2) * 100).toFixed(1) : "0.0";
+          const r1 = rankTierToInfo(p1.rank_tier, p1.leaderboard_rank);
+          const r2 = rankTierToInfo(p2.rank_tier, p2.leaderboard_rank);
+
+          const rows = [
+            ["Ранг", r1.label, r2.label],
+            ["Матчи (Винрейт)", `${fmtNum(g1)} (${wr1}%)`, `${fmtNum(g2)} (${wr2}%)`],
+            ["Средний KDA", getTot(t1, "kda").toFixed(2), getTot(t2, "kda").toFixed(2)],
+            ["GPM / XPM", `${Math.round(getTot(t1, "gold_per_min"))} / ${Math.round(getTot(t1, "xp_per_min"))}`, `${Math.round(getTot(t2, "gold_per_min"))} / ${Math.round(getTot(t2, "xp_per_min"))}`],
+            ["Средний урон", fmtNum(Math.round(getTot(t1, "hero_damage"))), fmtNum(Math.round(getTot(t2, "hero_damage")))]
+          ];
+
+          box.innerHTML = `
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Показатель</th><th>${esc(p1?.profile?.personaname || id1)}</th><th>${esc(p2?.profile?.personaname || id2)}</th></tr></thead>
+                <tbody>${rows.map(([k, a, b]) => `<tr><td class="card-sub">${k}</td><td class="mono">${esc(a)}</td><td class="mono">${esc(b)}</td></tr>`).join("")}</tbody>
+              </table>
+            </div>
+          `;
+        } catch (err) {
+          box.innerHTML = `<div class="notice">${esc(err.message || "Ошибка сравнения")}</div>`;
+        }
+      }
+
+      // Wire events
+      document.querySelectorAll(".nav-btn").forEach((btn) => {
+        btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+      });
+
+      document.getElementById("btn-theme").addEventListener("click", () => {
+        state.tgTheme = !state.tgTheme;
+        document.body.classList.toggle("theme-tg", state.tgTheme);
+        document.getElementById("btn-theme").textContent = state.tgTheme ? "Тема: TG" : "Тема: Dark";
+      });
+
+      document.getElementById("btn-send-chat").addEventListener("click", async () => {
+        const text = state.lastShareText || "Pocket Dotabuff Mini App";
+        if (tg && typeof tg.sendData === "function" && tg.initData) {
+          tg.sendData(JSON.stringify({ summary: text }));
+        } else {
+          try { await navigator.clipboard.writeText(text); } catch {}
+          showToast(`Сводка скопирована для отправки в чат: ${text}`);
+        }
+      });
+
+      document.getElementById("btn-load-profile").addEventListener("click", () => {
+        loadProfile(document.getElementById("profile-input").value);
+      });
+      document.getElementById("profile-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") loadProfile(e.target.value);
+      });
+
+      document.getElementById("btn-save-my-id").addEventListener("click", () => {
+        const val = document.getElementById("profile-input").value.trim();
+        if (!val) return;
+        try { localStorage.setItem(STORAGE_MY_ID, val); } catch {}
+        showToast(`ID «${val}» сохранён в браузере.`);
+      });
+
+      document.querySelectorAll("[data-preset-id]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.getElementById("profile-input").value = btn.dataset.presetId;
+          loadProfile(btn.dataset.presetId);
+        });
+      });
+
+      const heroInput = document.getElementById("rank-hero-input");
+      const acBox = document.getElementById("hero-autocomplete");
+
+      const triggerRankCalc = () => {
+        acBox.classList.add("hidden");
+        calculateHeroRank(
+          document.getElementById("rank-player-input").value,
+          heroInput.value
+        );
+      };
+      document.getElementById("btn-calc-rank").addEventListener("click", triggerRankCalc);
+      document.getElementById("rank-player-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") triggerRankCalc();
+      });
+      heroInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") triggerRankCalc();
+      });
+
+      document.querySelectorAll("[data-rank-preset]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const [pid, hero] = btn.dataset.rankPreset.split("|");
+          document.getElementById("rank-player-input").value = pid;
+          heroInput.value = hero;
+          calculateHeroRank(pid, hero);
+        });
+      });
+
+      heroInput.addEventListener("input", async () => {
+        await ensureHeroes();
+        const items = suggestHeroes(heroInput.value, 7);
+        if (!items.length) {
+          acBox.classList.add("hidden");
+          return;
+        }
+        acBox.innerHTML = items.map((s) => `
+          <button type="button" class="autocomplete-item" data-pick-hero="${esc(s.hero.localized_name)}">
+            <span style="display:flex;align-items:center;gap:8px;">
+              <img class="hero-img" style="width:36px;height:20px;" src="${esc(s.hero.imgUrl)}" alt="" />
+              <strong style="font-size:12px;">${esc(s.hero.localized_name)}</strong>
+            </span>
+            <span class="card-sub">${esc(s.aliases.slice(0, 3).join(", "))}</span>
+          </button>
+        `).join("");
+        acBox.classList.remove("hidden");
+      });
+
+      document.addEventListener("click", (e) => {
+        const pick = e.target.closest("[data-pick-hero]");
+        if (pick) {
+          heroInput.value = pick.dataset.pickHero;
+          acBox.classList.add("hidden");
+          calculateHeroRank(document.getElementById("rank-player-input").value, heroInput.value);
+          return;
+        }
+        if (!e.target.closest(".autocomplete-wrap")) {
+          acBox.classList.add("hidden");
+        }
+        const openMatch = e.target.closest("[data-open-match]");
+        if (openMatch) {
+          switchTab("matches");
+          loadMatchBreakdown(openMatch.dataset.openMatch);
+          return;
+        }
+        const jumpRank = e.target.closest("[data-jump-rank]");
+        if (jumpRank) {
+          const [pid, heroName] = jumpRank.dataset.jumpRank.split("|");
+          document.getElementById("rank-player-input").value = pid;
+          document.getElementById("rank-hero-input").value = heroName;
+          switchTab("rank");
+          calculateHeroRank(pid, heroName);
+          return;
+        }
+        const jumpHero = e.target.closest("[data-jump-hero]");
+        if (jumpHero) {
+          document.getElementById("rank-hero-input").value = jumpHero.dataset.jumpHero;
+          switchTab("rank");
+          calculateHeroRank(document.getElementById("rank-player-input").value, jumpHero.dataset.jumpHero);
+        }
+      });
+
+      const triggerMatchLoad = () => {
+        const mid = document.getElementById("match-id-input").value.replace(/\D/g, "");
+        if (mid) loadMatchBreakdown(mid);
+      };
+      document.getElementById("btn-load-match").addEventListener("click", triggerMatchLoad);
+      document.getElementById("match-id-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") triggerMatchLoad();
+      });
+
+      const triggerCompare = () => {
+        runCompare(document.getElementById("cmp-p1").value, document.getElementById("cmp-p2").value);
+      };
+      document.getElementById("btn-run-compare").addEventListener("click", triggerCompare);
+      document.getElementById("cmp-p1").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") triggerCompare();
+      });
+      document.getElementById("cmp-p2").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") triggerCompare();
+      });
+
+      document.getElementById("btn-demo-compare").addEventListener("click", () => {
+        document.getElementById("cmp-p1").value = "86745912";
+        document.getElementById("cmp-p2").value = "105248644";
+        runCompare("86745912", "105248644");
+      });
+
+      // Init on load
+      (async () => {
+        await ensureHeroes().catch(() => {});
+        const savedId = (() => { try { return localStorage.getItem(STORAGE_MY_ID); } catch { return null; } })();
+        const params = new URLSearchParams(window.location.search);
+        const startParam = params.get("startapp") || params.get("tgWebAppStartParam") || "";
+        if (startParam.startsWith("rank_")) {
+          const [, pid, hid] = startParam.split("_");
+          const h = state.heroMap.get(Number(hid));
+          if (pid && h) {
+            document.getElementById("rank-player-input").value = pid;
+            document.getElementById("rank-hero-input").value = h.localized_name;
+            switchTab("rank");
+            calculateHeroRank(pid, h.localized_name);
+            return;
+          }
+        } else if (startParam === "meta") {
+          switchTab("meta");
+        }
+        const initialId = startParam.startsWith("profile_") ? startParam.split("_")[1] : (savedId || "86745912");
+        document.getElementById("profile-input").value = initialId;
+        loadProfile(initialId);
+      })();
+    })();
+  </script>
+</body>
+</html>

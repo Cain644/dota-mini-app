@@ -4,6 +4,7 @@ from flask import Flask
 import re
 import math
 from datetime import datetime
+from flask import Flask, send_file
 import requests
 import telebot
 from telebot.types import (
@@ -1169,14 +1170,15 @@ if __name__ == "__main__":
    
 
 # ==========================================
-# Вставь этот единый блок в САМЫЙ КОНЕЦ файла bot.py:
+# Настройка Flask для отдачи HTML-страницы Mini App
 # ==========================================
 
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Dota Mini App Bot is running!"
+    # Отдаёт твой index.html из корня репозитория
+    return send_file('index.html')
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -1184,10 +1186,10 @@ def run_web():
 
 if __name__ == "__main__":
     register_slash_commands()
-    print("Карманный Dotabuff-бот запущен...")
+    print("Карманный Dotabuff-бот и веб-сервер запущены...")
     
-    # 1. Запускаем веб-сервер Flask в фоновом потоке (чтобы Render видел открытый порт)
+    # 1. Запускаем веб-сервер Flask в фоновом потоке
     threading.Thread(target=run_web, daemon=True).start()
     
-    # 2. В главном потоке запускаем самого Telegram-бота
+    # 2. В главном потоке запускаем Telegram-бота
     bot.infinity_polling(skip_pending=True)
